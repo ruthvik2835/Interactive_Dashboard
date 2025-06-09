@@ -1,7 +1,9 @@
 // components/AnalyticsComponent.jsx
 import React, { useState, useEffect } from 'react';
-
-const AnalyticsComponent = () => {
+/**
+ * @param {int} trackingId
+ */
+const AnalyticsComponent = ({ trackingId }) => {
   const [chartData, setChartData] = useState([]);
   const [timeRange, setTimeRange] = useState('7d');
   const [loading, setLoading] = useState(true);
@@ -87,7 +89,7 @@ const AnalyticsComponent = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div className="mb-4 sm:mb-0">
           <h3 className="text-lg font-semibold text-gray-900">Analytics</h3>
-          <p className="text-sm text-gray-500 mt-1">Performance metrics over time</p>
+          <p className="text-sm text-gray-500 mt-1">Tracking ID :- {trackingId}</p>
         </div>
         
         {/* Time Range Selector */}

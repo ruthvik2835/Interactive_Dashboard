@@ -1,69 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, cloneElement } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
+
+// Import your dashboard components
 import DashboardOverview from './DashboardOverview';
 import AnalyticsComponent from './Analytics';
 import SettingsComponent from './Settings';
 import ProfileComponent from './Profile';
 import NotificationsComponent from './Notifications';
 import ReportsComponent from './Reports1';
-
-// CSS imports
-// import 'react-grid-layout/css/styles.css';
-// import 'react-resizable/css/styles.css';
+import PropsCollector from './PropsCollector'; // The component to collect missing props
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-// NEW: Define keys for localStorage for easier management.
 const LOCAL_STORAGE_KEYS = {
   COMPONENTS: 'dashboard_selected_components',
-  // MODIFIED: Changed from a single layout to multiple layouts.
   LAYOUTS: 'dashboard_layouts_vector',
+  ACTIVELAYOUT: 'active_layout',
+  PROPS: 'dashboard_component_props', // Key for storing component-specific props
 };
 
-const Dashboard = ({ userId }) => {
-  // MODIFIED: Initialize state with null to represent "not yet loaded".
+const Dashboard = () => {
   const [userPreferences, setUserPreferences] = useState(null);
-  
-  // NEW: 'vector' renamed to 'layouts' for clarity. This will hold all saved layout configurations.
   const [layouts, setLayouts] = useState([]);
-  
-  // This will hold the *active* layout configuration for the grid.
   const [activeLayout, setActiveLayout] = useState([]);
-  
+  const [componentProps, setComponentProps] = useState({});
   const [loading, setLoading] = useState(true);
   const [newLayoutName, setNewLayoutName] = useState('');
+  const [editingComponentId, setEditingComponentId] = useState(null); // State to track which component is being edited
 
   const availableComponents = [
-    { id: 'dashboard', name: 'Dashboard Overview', icon: '📊' },
-    { id: 'analytics', name: 'Analytics', icon: '📈' },
-    { id: 'settings', name: 'Settings', icon: '⚙️' },
-    { id: 'profile', name: 'User Profile', icon: '👤' },
-    { id: 'notifications', name: 'Notifications', icon: '🔔' },
-    { id: 'reports', name: 'Reports', icon: '📋' },
+    { id: 'dashboard', name: 'Dashboard Overview', icon: '📊', component: <DashboardOverview />, requiredProps: [] },
+    { id: 'analytics', name: 'Analytics', icon: '📈', component: <AnalyticsComponent />, requiredProps: ['trackingId'] },
+    { id: 'settings', name: 'Settings', icon: '⚙️', component: <SettingsComponent />, requiredProps: [] },
+    { id: 'profile', name: 'User Profile', icon: '👤', component: <ProfileComponent />, requiredProps: ['username', 'email'] },
+    { id: 'notifications', name: 'Notifications', icon: '🔔', component: <NotificationsComponent />, requiredProps: [] },
+    { id: 'reports', name: 'Reports', icon: '📋', component: <ReportsComponent />, requiredProps: [] },
   ];
-
-  const renderComponent = (componentType) => {
-    switch (componentType) {
-      case 'dashboard':
-        return <DashboardOverview />;
-      case 'analytics':
-        return <AnalyticsComponent />;
-      case 'settings':
-        return <SettingsComponent />;
-      case 'profile':
-        return <ProfileComponent />;
-      case 'notifications':
-        return <NotificationsComponent />;
-      case 'reports':
-        return <ReportsComponent />;
-      default:
-        return (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <div className="text-red-600 font-medium">Component not found</div>
-          </div>
-        );
-    }
-  };
 
   const generateLayout = (components) => {
     return components.map((componentId, index) => ({
@@ -75,36 +47,47 @@ const Dashboard = ({ userId }) => {
     }));
   };
 
-  const toggleComponent = (componentId) => {
-    const updatedComponents = userPreferences.selectedComponents.includes(componentId)
-      ? userPreferences.selectedComponents.filter((id) => id !== componentId)
-      : [...userPreferences.selectedComponents, componentId];
+  const handlePropsSubmit = (componentId, submittedProps) => {
+    const updatedProps = { ...componentProps, [componentId]: submittedProps };
+    setComponentProps(updatedProps);
+    localStorage.setItem(LOCAL_STORAGE_KEYS.PROPS, JSON.stringify(updatedProps));
+    setEditingComponentId(null); // Exit editing mode on successful submission
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingComponentId(null); // Cancel editing and hide the form
+  };
 
-    const newPreferences = {
-      ...userPreferences,
-      selectedComponents: updatedComponents,
-    };
+  const toggleComponent = (componentId) => {
+    const isSelected = userPreferences.selectedComponents.includes(componentId);
+    let updatedComponents;
+
+    if (isSelected) {
+      updatedComponents = userPreferences.selectedComponents.filter((id) => id !== componentId);
+      // Clean up props when a component is removed
+      const newComponentProps = { ...componentProps };
+      delete newComponentProps[componentId];
+      setComponentProps(newComponentProps);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.PROPS, JSON.stringify(newComponentProps));
+    } else {
+      updatedComponents = [...userPreferences.selectedComponents, componentId];
+    }
     
-    // When components change, we generate a fresh layout for them.
+    const newPreferences = { ...userPreferences, selectedComponents: updatedComponents };
     const newLayout = generateLayout(updatedComponents);
 
     setUserPreferences(newPreferences);
-    setActiveLayout(newLayout); // Set the new layout as active.
-
+    setActiveLayout(newLayout);
     localStorage.setItem(LOCAL_STORAGE_KEYS.COMPONENTS, JSON.stringify(updatedComponents));
-    // We don't save the layout here because the user might want to arrange it first.
   };
-  
+
   const handleLayoutChange = (newLayout) => {
-    // Only update if the layout has actually changed to prevent unnecessary re-renders.
     if (JSON.stringify(newLayout) !== JSON.stringify(activeLayout)) {
         setActiveLayout(newLayout);
         localStorage.setItem(LOCAL_STORAGE_KEYS.ACTIVELAYOUT, JSON.stringify(newLayout));
-        console.log('changed!: ',newLayout);
     }
   };
-  
-  // NEW: Function to save the current layout to the vector.
+
   const saveCurrentLayout = () => {
     if (!newLayoutName.trim()) {
       alert('Please enter a name for the layout.');
@@ -113,74 +96,68 @@ const Dashboard = ({ userId }) => {
     const newLayoutVector = {
       name: newLayoutName,
       config: activeLayout,
-      userPreferences:userPreferences
+      userPreferences: userPreferences,
+      componentProps: componentProps,
     };
     const updatedLayouts = [...layouts, newLayoutVector];
     setLayouts(updatedLayouts);
     localStorage.setItem(LOCAL_STORAGE_KEYS.LAYOUTS, JSON.stringify(updatedLayouts));
-    setNewLayoutName(''); // Clear input field
+    setNewLayoutName('');
   };
-  
-  // NEW: Function to apply a selected layout from the vector.
+
   const applyLayout = (layoutToApply) => {
     setActiveLayout(layoutToApply.config);
     setUserPreferences(layoutToApply.userPreferences);
+    if (layoutToApply.componentProps) {
+      setComponentProps(layoutToApply.componentProps);
+    }
   };
-  
-  // NEW: Function to delete a saved layout.
+
   const deleteLayout = (layoutNameToDelete) => {
       const updatedLayouts = layouts.filter(l => l.name !== layoutNameToDelete);
       setLayouts(updatedLayouts);
       localStorage.setItem(LOCAL_STORAGE_KEYS.LAYOUTS, JSON.stringify(updatedLayouts));
-  }
+  };
 
   useEffect(() => {
     const loadUserPreferences = () => {
       try {
         const savedComponentsJSON = localStorage.getItem(LOCAL_STORAGE_KEYS.COMPONENTS);
-        // NEW: Load the entire vector of layouts.
         const savedLayoutsVectorJSON = localStorage.getItem(LOCAL_STORAGE_KEYS.LAYOUTS);
         const activeLayoutJSON = localStorage.getItem(LOCAL_STORAGE_KEYS.ACTIVELAYOUT);
+        const savedPropsJSON = localStorage.getItem(LOCAL_STORAGE_KEYS.PROPS);
 
-        let selectedComponents = ['dashboard', 'analytics']; // Default components
-        let savedLayouts = []; // Default empty layouts vector
+        let selectedComponents = []; 
+        let savedLayouts = [];
+        let savedProps = {};
 
-        if (savedComponentsJSON) {
-          selectedComponents = JSON.parse(savedComponentsJSON);
-        }
-
+        if (savedComponentsJSON) selectedComponents = JSON.parse(savedComponentsJSON);
         if (savedLayoutsVectorJSON) {
           savedLayouts = JSON.parse(savedLayoutsVectorJSON);
           setLayouts(savedLayouts);
         }
+        if (savedPropsJSON) savedProps = JSON.parse(savedPropsJSON);
+        setUserPreferences({ selectedComponents });
+        setComponentProps(savedProps);
 
-        if(activeLayoutJSON){
-          let savedLayout = JSON.parse(activeLayoutJSON);
-          console.log("savedLayout: ",savedLayout);
-          setActiveLayout(savedLayout);
+        if (activeLayoutJSON) {
+          setActiveLayout(JSON.parse(activeLayoutJSON));
+        } else {
+          setActiveLayout(generateLayout(selectedComponents));
         }
-
-        const preferences = { selectedComponents };
-        setUserPreferences(preferences);
-
-        // // Try to find an active layout that matches the selected components.
-        // // If not found, generate a new one.
-        // const lastActiveLayout = savedLayouts.length > 0 ? savedLayouts[savedLayouts.length - 1].config : generateLayout(selectedComponents);
-        // setActiveLayout(lastActiveLayout);
-
       } catch (error) {
         console.error('Failed to load or parse user preferences:', error);
-        const defaultPreferences = { selectedComponents: ['dashboard', 'analytics'] };
+        const defaultPreferences = { selectedComponents: [] };
         setUserPreferences(defaultPreferences);
         setActiveLayout(generateLayout(defaultPreferences.selectedComponents));
         setLayouts([]);
+        setComponentProps({});
       } finally {
         setLoading(false);
       }
     };
-    
     loadUserPreferences();
-  }, []); // Runs once on mount.
+  }, []);
 
   if (loading || !userPreferences) {
     return (
@@ -195,7 +172,7 @@ const Dashboard = ({ userId }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Component Selection & Layout Management Panel */}
+      {/* Sidebar for Customization */}
       <div className="w-80 bg-white shadow-lg border-r border-gray-200 flex flex-col">
         <div className="p-6 border-b border-gray-200">
           <h3 className="text-xl font-bold text-gray-800 mb-2">Customize Dashboard</h3>
@@ -203,7 +180,6 @@ const Dashboard = ({ userId }) => {
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto">
-          {/* Component Toggles */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Components</h4>
             {availableComponents.map((component) => (
@@ -220,7 +196,6 @@ const Dashboard = ({ userId }) => {
             ))}
           </div>
 
-          {/* NEW: Layout Management Section */}
           <div className="mt-8">
             <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Layouts</h4>
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -256,7 +231,7 @@ const Dashboard = ({ userId }) => {
         </div>
       </div>
 
-      {/* Dashboard Content */}
+      {/* Main Dashboard Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="bg-white shadow-sm border-b border-gray-200 p-6">
           <div className="flex justify-between items-center">
@@ -271,35 +246,63 @@ const Dashboard = ({ userId }) => {
           {userPreferences.selectedComponents.length > 0 ? (
             <ResponsiveGridLayout
               className="layout"
-              // MODIFIED: Use the activeLayout state.
               layouts={{ lg: activeLayout }}
               breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
               cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
               rowHeight={100}
-              onLayoutChange={(layout, layouts) => handleLayoutChange(layout)}
+              onLayoutChange={(layout) => handleLayoutChange(layout)}
               draggableHandle=".drag-handle"
             >
-              {userPreferences.selectedComponents.map((componentType) => {
-                const componentInfo = availableComponents.find(c => c.id === componentType);
+              {userPreferences.selectedComponents.map((componentId) => {
+                const componentInfo = availableComponents.find(c => c.id === componentId);
+                if (!componentInfo) {
+                    return (
+                        <div key={componentId} className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                            <div className="text-red-600 font-medium">Component definition for '{componentId}' not found.</div>
+                        </div>
+                    );
+                }
+
+                const propsForComponent = componentProps[componentId] || {};
+                const requiredProps = componentInfo.requiredProps || [];
+                const hasAllProps = requiredProps.every(p => propsForComponent[p]);
+                const isEditing = editingComponentId === componentId;
+
                 return (
-                  <div key={componentType} className="bg-white rounded-lg shadow-md flex flex-col overflow-hidden">
+                  <div key={componentId} className="bg-white rounded-lg shadow-md flex flex-col overflow-hidden">
                     <div className="bg-gray-50 p-2 px-4 border-b border-gray-200 flex justify-between items-center">
                       <h3 className="font-semibold text-gray-700 text-sm truncate">
-                        {componentInfo?.name || 'Component'}
+                        {componentInfo.name}
                       </h3>
-                      <div className="drag-handle cursor-move text-gray-400 hover:text-gray-700 p-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="1"></circle>
-                          <circle cx="12" cy="5" r="1"></circle>
-                          <circle cx="12" cy="19" r="1"></circle>
-                        </svg>
+                      <div className="flex items-center">
+                        {/* Show Edit button only if there are props to configure */}
+                        {requiredProps.length > 0 && (
+                          <button onClick={() => setEditingComponentId(componentId)} className="cursor-pointer text-gray-400 hover:text-blue-600 p-1" title="Edit Properties">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                          </button>
+                        )}
+                        <div className="drag-handle cursor-move text-gray-400 hover:text-gray-700 p-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
+                          </svg>
+                        </div>
                       </div>
                     </div>
                     <div className="p-4 flex-1 overflow-auto">
-                      {renderComponent(componentType)}
+                      {hasAllProps && !isEditing ? (
+                        cloneElement(componentInfo.component, { ...propsForComponent })
+                      ) : (
+                        <PropsCollector
+                          componentName={componentInfo.name}
+                          propsNeeded={requiredProps}
+                          initialData={propsForComponent} // Pass current props to pre-fill the form
+                          onSubmit={(submittedProps) => handlePropsSubmit(componentId, submittedProps)}
+                          onCancel={handleCancelEdit} // Pass cancel handler
+                        />
+                      )}
                     </div>
                   </div>
-                )
+                );
               })}
             </ResponsiveGridLayout>
           ) : (

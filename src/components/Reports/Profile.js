@@ -1,50 +1,73 @@
-// components/ProfileComponent.jsx
 import React, { useState, useEffect } from 'react';
 
-const ProfileComponent = () => {
+/**
+ * ProfileComponent
+ * Displays and allows editing of user profile information.
+ * @param {string} username - The initial username, passed as a prop.
+ * @param {string} email - The initial email, passed as a prop.
+ */
+const ProfileComponent = ({ username, email }) => {
+  // Initialize state. The `name` and `email` fields are set directly
+  // from the props. Other fields are initially empty.
   const [profile, setProfile] = useState({
-    name: '',
-    email: '',
+    name: username || '',
+    email: email || '',
     phone: '',
     company: '',
     role: '',
     avatar: null
   });
+
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // useEffect now uses the passed-in props to "load" the rest of the user data.
+  // It will re-run if the username or email props change.
   useEffect(() => {
-    const loadProfile = async () => {
+    const loadProfileDetails = () => {
+      setLoading(true);
+      // Simulate an API call to fetch additional details based on username/email
       try {
         setTimeout(() => {
-          setProfile({
-            name: 'John Doe',
-            email: 'john.doe@example.com',
+          // In a real app, you'd fetch this data. Here, we'll use mock data
+          // for the fields that weren't passed as props.
+          setProfile(prev => ({
+            ...prev, // Keep the name and email from props
             phone: '+1 (555) 123-4567',
-            company: 'Tech Corp',
-            role: 'Senior Developer',
-            avatar: null
-          });
+            company: 'Dynamic Solutions Inc.',
+            role: 'Lead Engineer',
+          }));
           setLoading(false);
         }, 800);
       } catch (error) {
-        console.error('Failed to load profile:', error);
+        console.error('Failed to load profile details:', error);
         setLoading(false);
       }
     };
 
-    loadProfile();
-  }, []);
+    // Only run if we have the required props
+    if (username && email) {
+      loadProfileDetails();
+    } else {
+        // If required props are missing, stop loading. The component will
+        // likely show an error or empty state, handled by the parent.
+        setLoading(false);
+    }
+  }, [username, email]); // Dependency array ensures this runs when props change
 
+  // Handles changes in the input fields during editing
   const handleInputChange = (field, value) => {
     setProfile(prev => ({ ...prev, [field]: value }));
   };
 
+  // Simulates saving the updated profile data
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Simulate an API call to save the data
       setTimeout(() => {
+        console.log('Profile saved:', profile);
         setSaving(false);
         setEditing(false);
       }, 1000);
@@ -54,6 +77,7 @@ const ProfileComponent = () => {
     }
   };
 
+  // Handles the selection of a new avatar image
   const handleAvatarChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -65,6 +89,7 @@ const ProfileComponent = () => {
     }
   };
 
+  // Shows a skeleton loader while "fetching" data
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -95,6 +120,7 @@ const ProfileComponent = () => {
           <p className="text-sm text-gray-500 mt-1">Manage your personal information</p>
         </div>
         <button 
+          disabled
           onClick={() => setEditing(!editing)}
           className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
             editing 
@@ -102,7 +128,7 @@ const ProfileComponent = () => {
               : 'text-blue-700 bg-blue-100 hover:bg-blue-200'
           }`}
         >
-          {editing ? 'Cancel' : 'Edit'}
+          {editing ? 'Cancel' : 'Dummy'}
         </button>
       </div>
 
@@ -118,7 +144,7 @@ const ProfileComponent = () => {
               />
             ) : (
               <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-3xl border-4 border-gray-100">
-                👤
+                {profile.name ? profile.name.charAt(0).toUpperCase() : '👤'}
               </div>
             )}
             {editing && (
