@@ -1,50 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { Form, Input, Button, Alert, Space, Typography, message } from 'antd';
+import { SaveOutlined, CloseCircleOutlined } from '@ant-design/icons';
+
+const { Title, Paragraph } = Typography;
 
 const PropsCollector = ({ componentName, propsNeeded, initialData, onSubmit, onCancel }) => {
-  // Initialize state to hold the values from the form inputs
-  const [formData, setFormData] = useState(() => {
-    // Use initialData to pre-fill the form if provided
-    if (initialData) {
-      return propsNeeded.reduce((acc, prop) => {
-        acc[prop] = initialData[prop] !== undefined ? initialData[prop] : '';
-        return acc;
-      }, {});
-    } else {
-      return propsNeeded.reduce((acc, prop) => {
-        acc[prop] = '';
-        return acc;
-      }, {});
-    }
-  });
+  // Use Ant Design's Form instance for state management and validation
+  const [form] = Form.useForm();
 
-  // Update formData if initialData changes (e.g., when editing a different component)
+  // Effect to reset and set form fields when the component being edited changes
   useEffect(() => {
-    if (initialData) {
-      setFormData(
-        propsNeeded.reduce((acc, prop) => {
-          acc[prop] = initialData[prop] !== undefined ? initialData[prop] : '';
-          return acc;
-        }, {})
-      );
-    }
-  }, [initialData, propsNeeded]);
+    // The `initialData` prop contains the current values for the component's props.
+    // We use it to pre-fill the form.
+    const fieldsData = propsNeeded.reduce((acc, prop) => {
+      acc[prop] = initialData?.[prop] || '';
+      return acc;
+    }, {});
+    form.setFieldsValue(fieldsData);
+  }, [initialData, propsNeeded, form]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+  // This function is called when the form is submitted and validation succeeds
+  const handleFinish = (values) => {
+    // The `values` object contains the validated form data
+    onSubmit(values);
+    message.success(`${componentName} configured successfully!`);
   };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Check if any field is empty
-    if (Object.values(formData).some(value => !value.trim())) {
-      alert('Please fill out all fields.');
-      return;
-    }
-    onSubmit(formData);
+  
+  // This function is called when form validation fails
+  const handleFinishFailed = () => {
+    message.error('Please fill out all required fields.');
   };
 
   const handleCancel = () => {
@@ -53,44 +37,61 @@ const PropsCollector = ({ componentName, propsNeeded, initialData, onSubmit, onC
     }
   };
 
+  // Function to format the prop name for display (e.g., 'trackingId' -> 'Tracking Id')
+  const formatLabel = (propName) => {
+    return propName
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .replace(/^./, (str) => str.toUpperCase()); // Capitalize the first letter
+  };
+
   return (
-    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center h-full flex flex-col justify-center">
-      <h4 className="text-lg font-bold text-yellow-800 mb-2">Configure {componentName}</h4>
-      <p className="text-sm text-yellow-700 mb-4">This component needs some information to get started.</p>
-      <form onSubmit={handleSubmit} className="space-y-3 text-left">
-        {propsNeeded.map((propName) => (
-          <div key={propName}>
-            <label htmlFor={propName} className="block text-sm font-medium text-gray-700 capitalize">
-              {propName.replace(/([A-Z])/g, ' $1')}
-            </label>
-            <input
-              type="text"
-              id={propName}
-              name={propName}
-              value={formData[propName]}
-              onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder={`Enter ${propName}...`}
-            />
-          </div>
-        ))}
-        <button
-          type="submit"
-          className="w-full mt-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors"
-        >
-          Save and Render Component
-        </button>
-        {onCancel && ( // Only render cancel button if onCancel prop is provided
-          <button
-            type="button" // Use type="button" to prevent form submission
-            onClick={handleCancel}
-            className="w-full mt-2 px-4 py-2 bg-gray-300 text-gray-800 font-semibold rounded-md hover:bg-gray-400 transition-colors"
-          >
-            Cancel
-          </button>
-        )}
-      </form>
-    </div>
+    // Use AntD's Alert component for a visually distinct container
+    <Alert
+      type="info"
+      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+      message={
+        <Title level={5} style={{ margin: 0 }}>Configure {componentName}</Title>
+      }
+      description={
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Paragraph type="secondary" style={{ flexShrink: 0 }}>
+                This component needs some information to get started.
+            </Paragraph>
+            <div style={{ flex: 1, overflow: 'auto', paddingTop: '16px' }}>
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleFinish}
+                    onFinishFailed={handleFinishFailed}
+                    autoComplete="off"
+                >
+                    {propsNeeded.map((propName) => (
+                    <Form.Item
+                        key={propName}
+                        name={propName}
+                        label={formatLabel(propName)}
+                        rules={[{ required: true, message: `Please enter the ${formatLabel(propName)}.` }]}
+                    >
+                        <Input placeholder={`Enter ${formatLabel(propName)}...`} />
+                    </Form.Item>
+                    ))}
+                    <Form.Item style={{ marginTop: '24px', marginBottom: 0 }}>
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                        <Button type="primary" htmlType="submit" block icon={<SaveOutlined />}>
+                            Save and Render
+                        </Button>
+                        {onCancel && (
+                        <Button onClick={handleCancel} block icon={<CloseCircleOutlined />}>
+                            Cancel
+                        </Button>
+                        )}
+                    </Space>
+                    </Form.Item>
+                </Form>
+            </div>
+        </div>
+      }
+    />
   );
 };
 
