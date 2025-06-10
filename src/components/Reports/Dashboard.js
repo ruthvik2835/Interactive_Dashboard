@@ -332,13 +332,13 @@ const Dashboard = () => {
                 <p className="text-gray-600 mb-6">
                   Select components from the sidebar to customize your dashboard.
                 </p>
-                <button
+                {/* <button
                   onClick={() => toggleComponent('dashboard')}
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
                 >
                   <span className="mr-2">📊</span>
                   Add Dashboard Overview
-                </button>
+                </button> */}
               </div>
             </div>
           )}
