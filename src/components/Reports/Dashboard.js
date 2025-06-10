@@ -203,15 +203,15 @@ const Dashboard = () => {
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Components</h4>
             {availableComponents.map((component) => (
-              <label key={component.id} className="flex items-center p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all duration-200 group">
+              <label key={component.id} className="flex items-center p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all duration-50 group">
                 <input
                   type="checkbox"
                   checked={userPreferences.selectedComponents.includes(component.id)}
                   onChange={() => toggleComponent(component.id)}
                   className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                 />
-                <span className="text-2xl ml-3 group-hover:scale-110 transition-transform duration-200">{component.icon}</span>
-                <span className="ml-3 text-gray-700 font-medium group-hover:text-blue-700 transition-colors duration-200">{component.name}</span>
+                <span className="text-2xl ml-3 group-hover:scale-110 transition-transform duration-50">{component.icon}</span>
+                <span className="ml-3 text-gray-700 font-medium group-hover:text-blue-700 transition-colors duration-50">{component.name}</span>
               </label>
             ))}
           </div>
@@ -334,7 +334,7 @@ const Dashboard = () => {
                 </p>
                 {/* <button
                   onClick={() => toggleComponent('dashboard')}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-50"
                 >
                   <span className="mr-2">📊</span>
                   Add Dashboard Overview

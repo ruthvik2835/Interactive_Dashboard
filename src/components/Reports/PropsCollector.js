@@ -1,13 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const PropsCollector = ({ componentName, propsNeeded, onSubmit }) => {
+const PropsCollector = ({ componentName, propsNeeded, initialData, onSubmit, onCancel }) => {
   // Initialize state to hold the values from the form inputs
-  const [formData, setFormData] = useState(
-    propsNeeded.reduce((acc, prop) => {
-      acc[prop] = '';
-      return acc;
-    }, {})
-  );
+  const [formData, setFormData] = useState(() => {
+    // Use initialData to pre-fill the form if provided
+    if (initialData) {
+      return propsNeeded.reduce((acc, prop) => {
+        acc[prop] = initialData[prop] !== undefined ? initialData[prop] : '';
+        return acc;
+      }, {});
+    } else {
+      return propsNeeded.reduce((acc, prop) => {
+        acc[prop] = '';
+        return acc;
+      }, {});
+    }
+  });
+
+  // Update formData if initialData changes (e.g., when editing a different component)
+  useEffect(() => {
+    if (initialData) {
+      setFormData(
+        propsNeeded.reduce((acc, prop) => {
+          acc[prop] = initialData[prop] !== undefined ? initialData[prop] : '';
+          return acc;
+        }, {})
+      );
+    }
+  }, [initialData, propsNeeded]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,6 +45,12 @@ const PropsCollector = ({ componentName, propsNeeded, onSubmit }) => {
       return;
     }
     onSubmit(formData);
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    }
   };
 
   return (
@@ -54,6 +80,15 @@ const PropsCollector = ({ componentName, propsNeeded, onSubmit }) => {
         >
           Save and Render Component
         </button>
+        {onCancel && ( // Only render cancel button if onCancel prop is provided
+          <button
+            type="button" // Use type="button" to prevent form submission
+            onClick={handleCancel}
+            className="w-full mt-2 px-4 py-2 bg-gray-300 text-gray-800 font-semibold rounded-md hover:bg-gray-400 transition-colors"
+          >
+            Cancel
+          </button>
+        )}
       </form>
     </div>
   );
