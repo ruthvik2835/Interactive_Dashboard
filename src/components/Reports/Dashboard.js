@@ -61,6 +61,7 @@ const Dashboard = () => {
   const toggleComponent = (componentId) => {
     const isSelected = userPreferences.selectedComponents.includes(componentId);
     let updatedComponents;
+    let newLayout = [...activeLayout]; // Start with the current active layout
 
     if (isSelected) {
       updatedComponents = userPreferences.selectedComponents.filter((id) => id !== componentId);
@@ -69,16 +70,32 @@ const Dashboard = () => {
       delete newComponentProps[componentId];
       setComponentProps(newComponentProps);
       localStorage.setItem(LOCAL_STORAGE_KEYS.PROPS, JSON.stringify(newComponentProps));
+
+      // Remove the component from the layout
+      newLayout = newLayout.filter(item => item.i !== componentId);
+
     } else {
       updatedComponents = [...userPreferences.selectedComponents, componentId];
+      // Add a new layout item for the newly selected component if it doesn't exist
+      if (!newLayout.some(item => item.i === componentId)) {
+        const nextX = (newLayout.length % 2) * 6;
+        const nextY = Math.floor(newLayout.length / 2) * 4;
+        newLayout.push({
+          i: componentId,
+          x: nextX,
+          y: nextY,
+          w: 6,
+          h: 5,
+        });
+      }
     }
     
     const newPreferences = { ...userPreferences, selectedComponents: updatedComponents };
-    const newLayout = generateLayout(updatedComponents);
 
     setUserPreferences(newPreferences);
-    setActiveLayout(newLayout);
+    setActiveLayout(newLayout); // Update layout with the new component's position
     localStorage.setItem(LOCAL_STORAGE_KEYS.COMPONENTS, JSON.stringify(updatedComponents));
+    localStorage.setItem(LOCAL_STORAGE_KEYS.ACTIVELAYOUT, JSON.stringify(newLayout)); // Save the updated layout
   };
 
   const handleLayoutChange = (newLayout) => {
@@ -111,6 +128,8 @@ const Dashboard = () => {
     if (layoutToApply.componentProps) {
       setComponentProps(layoutToApply.componentProps);
     }
+    localStorage.setItem(LOCAL_STORAGE_KEYS.ACTIVELAYOUT, JSON.stringify(layoutToApply.config)); // Save applied layout
+    localStorage.setItem(LOCAL_STORAGE_KEYS.COMPONENTS, JSON.stringify(layoutToApply.userPreferences.selectedComponents)); // Save applied components
   };
 
   const deleteLayout = (layoutNameToDelete) => {
@@ -143,6 +162,7 @@ const Dashboard = () => {
         if (activeLayoutJSON) {
           setActiveLayout(JSON.parse(activeLayoutJSON));
         } else {
+          // If no active layout is saved, generate one based on selected components
           setActiveLayout(generateLayout(selectedComponents));
         }
       } catch (error) {
@@ -257,7 +277,7 @@ const Dashboard = () => {
                 const componentInfo = availableComponents.find(c => c.id === componentId);
                 if (!componentInfo) {
                     return (
-                        <div key={componentId} className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                        <div key={componentId} className="bg-red-50 border border-red-200 rounded-lg p-6 text-center ">
                             <div className="text-red-600 font-medium">Component definition for '{componentId}' not found.</div>
                         </div>
                     );
@@ -281,7 +301,7 @@ const Dashboard = () => {
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                           </button>
                         )}
-                        <div className="drag-handle cursor-move text-gray-400 hover:text-gray-700 p-1">
+                        <div className="drag-handle cursor-move text-gray-400 hover:text-gray-700 p-1 select-none">
                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
                           </svg>
