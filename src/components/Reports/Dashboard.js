@@ -46,6 +46,13 @@ const Dashboard = () => {
       h: 5,
     }));
   };
+  const handleResizeStart = () => {
+    document.body.classList.add('select-none');
+  };
+
+  const handleResizeStop = () => {
+    document.body.classList.remove('select-none');
+  };
 
   const handlePropsSubmit = (componentId, submittedProps) => {
     const updatedProps = { ...componentProps, [componentId]: submittedProps };
@@ -270,6 +277,8 @@ const Dashboard = () => {
               breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
               cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
               rowHeight={100}
+              onResizeStart={handleResizeStart}
+              onResizeStop={handleResizeStop}
               onLayoutChange={(layout) => handleLayoutChange(layout)}
               draggableHandle=".drag-handle"
             >
